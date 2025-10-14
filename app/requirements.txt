@@ -1,69 +1,64 @@
-# Core FastAPI dependencies
+# ============================================
+# LIGHTWEIGHT OCR SERVICE - REQUIREMENTS
+# ============================================
+# Total size: ~80-100MB (vs 500MB+ with PaddleOCR)
+# Last updated: 2025-10-14
+# ============================================
+
+# Core FastAPI Framework (Required)
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 
-# Pydantic for data validation
+# Data Validation (Required)
 pydantic==2.5.0
 
-# Future OCR dependencies (commented for MVP)
-# opencv-python==4.8.1.78
-# pytesseract==0.3.10
-# paddlepaddle==2.5.2
-# paddleocr==2.7.3
-# PyMuPDF==1.23.8
-# Pillow==10.1.0
-
-# Development dependencies
-pytest==7.4.3
-pytest-asyncio==0.21.1
-httpx==0.25.2
-
-# Core FastAPI dependencies
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-multipart==0.0.6
-
-# Pydantic for data validation
-pydantic==2.5.0
-
-# OCR and Image Processing
-opencv-python==4.8.1.78
+# OCR Engine - Tesseract (Required)
+# Note: Also requires system Tesseract binary
+# Install: sudo apt install tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin
 pytesseract==0.3.10
-paddlepaddle==2.5.2
-paddleocr==2.7.3
-PyMuPDF==1.23.8
-Pillow==10.1.0
 
-# Additional utilities
+# Image Processing (Required)
+Pillow==10.1.0
 numpy==1.24.3
 
-# Development dependencies
-pytest==7.4.3
-pytest-asyncio==0.21.1
-httpx==0.25.2
+# OpenCV - Headless version (no GUI = smaller size)
+# Using headless: ~30MB vs regular opencv-python: ~50MB
+opencv-python-headless==4.8.1.78
 
-# Core FastAPI dependencies
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-multipart==0.0.6
-
-# Pydantic for data validation
-pydantic==2.5.0
-
-# OCR and Image Processing Dependencies
-opencv-python==4.8.1.78
-pytesseract==0.3.10
-Pillow==10.1.0
+# PDF Processing (Optional - only if you need PDF support)
+# Comment out if you only process images
 PyMuPDF==1.23.8
-numpy==1.24.3
 
-# Optional: PaddleOCR (more advanced but heavier)
-# Uncomment these lines if you want PaddleOCR support:
-# paddlepaddle==2.5.2
-# paddleocr==2.7.3
+# Development & Testing (Optional)
+# Uncomment for development
+# pytest==7.4.3
+# pytest-asyncio==0.21.1
+# httpx==0.25.2
 
-# Development dependencies
-pytest==7.4.3
-pytest-asyncio==0.21.1
-httpx==0.25.2
+# ============================================
+# REMOVED (for lightweight version):
+# ============================================
+# paddlepaddle==2.5.2        # ❌ Removed (300MB)
+# paddleocr==2.7.3           # ❌ Removed (100MB)
+# opencv-python==4.8.1.78    # ❌ Replaced with headless version
+#
+# Total savings: ~420MB (80% reduction)
+# ============================================
+
+# ============================================
+# SYSTEM DEPENDENCIES REQUIRED:
+# ============================================
+# Ubuntu/Debian:
+#   sudo apt update
+#   sudo apt install tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin
+#
+# CentOS/RHEL:
+#   sudo yum install tesseract tesseract-langpack-eng tesseract-langpack-hin
+#
+# macOS:
+#   brew install tesseract tesseract-lang
+#
+# Windows:
+#   Download from: https://github.com/UB-Mannheim/tesseract/wiki
+# ============================================
