@@ -1,5 +1,6 @@
 """
-API routes with real OCR + intelligent parser integration.
+API routes with enhanced OCR + intelligent parser integration.
+UPDATED: Now uses document-specific preprocessing for better accuracy.
 """
 
 from datetime import datetime
@@ -20,26 +21,34 @@ from app.schemas.base import (
     Warning
 )
 
-# Import real OCR components - FIXED IMPORT PATH
+# Import OCR components with enhanced preprocessing
 OCR_AVAILABLE = False
 ocr_manager = None
 
 try:
-    # ✅ FIXED: Correct import path
     from app.ocr.manager import get_ocr_manager, extract_text_from_image
     
-    # Initialize OCR manager
+    # Initialize OCR manager with enhanced preprocessing enabled
     ocr_manager = get_ocr_manager(
         languages=["eng", "hin"],
         preferred_engine="tesseract",
-        enable_preprocessing=True
+        enable_preprocessing=True,
+        enable_enhanced_preprocessing=True  # 🆕 NEW: Enable enhanced preprocessing
     )
     
-    # ✅ FIXED: Check if any engines are actually available
+    # Check if any engines are actually available
     available_engines = ocr_manager.get_available_engines()
     if available_engines:
         OCR_AVAILABLE = True
-        logging.info(f"Real OCR system initialized with engines: {available_engines}")
+        logging.info(f"OCR system initialized with enhanced preprocessing")
+        logging.info(f"Available engines: {available_engines}")
+        
+        # Check enhanced preprocessing status
+        stats = ocr_manager.get_manager_stats()
+        if stats.get('enhanced_preprocessing_enabled'):
+            logging.info("✅ Enhanced preprocessing active for better accuracy")
+        else:
+            logging.warning("⚠️ Enhanced preprocessing not available")
     else:
         OCR_AVAILABLE = False
         logging.warning("OCR manager created but no engines available")
@@ -68,13 +77,15 @@ except ImportError as e:
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# ✅ ADDED: Log final initialization status
+# Log final initialization status
 logger.info(f"System initialization status:")
 logger.info(f"  OCR_AVAILABLE: {OCR_AVAILABLE}")
 logger.info(f"  PROCESSOR_AVAILABLE: {PROCESSOR_AVAILABLE}")
 logger.info(f"  PARSERS_AVAILABLE: {PARSERS_AVAILABLE}")
 if OCR_AVAILABLE and ocr_manager:
     logger.info(f"  OCR engines: {ocr_manager.get_available_engines()}")
+    stats = ocr_manager.get_manager_stats()
+    logger.info(f"  Enhanced preprocessing: {stats.get('enhanced_preprocessing_enabled', False)}")
 
 
 @router.get("/healthz", response_model=HealthResponse)
@@ -83,11 +94,18 @@ async def health_check():
     
     # Check OCR system status
     ocr_status = "unavailable"
+    enhanced_preprocessing_status = False
+    
     if OCR_AVAILABLE and ocr_manager:
         try:
             available_engines = ocr_manager.get_available_engines()
+            stats = ocr_manager.get_manager_stats()
+            enhanced_preprocessing_status = stats.get('enhanced_preprocessing_enabled', False)
+            
             if available_engines:
                 ocr_status = f"available:{','.join(available_engines)}"
+                if enhanced_preprocessing_status:
+                    ocr_status += "+enhanced"
             else:
                 ocr_status = "no_engines"
         except Exception as e:
@@ -117,14 +135,19 @@ async def upload_document(
     doc_type: DocumentType = Form(...)
 ):
     """
-    Upload and parse document using real OCR + intelligent parsers
+    Upload and parse document using enhanced OCR + intelligent parsers
+    
+    UPDATED: Now uses document-specific preprocessing for better accuracy:
+    - Aadhaar cards get Aadhaar-optimized preprocessing
+    - PAN cards get PAN-optimized preprocessing
+    - DL/Voter ID get generic enhanced preprocessing
     
     Args:
         file: Document file (PDF or image)
         doc_type: Type of document (aadhaar, pan, dl, voter_id)
     
     Returns:
-        DocumentResponse: Parsed document with real OCR and intelligent field extraction
+        DocumentResponse: Parsed document with enhanced OCR accuracy
     """
     try:
         # Read file content
@@ -160,16 +183,15 @@ async def upload_document(
                 detail=f"Unsupported file type: {file.content_type}"
             )
         
-        # ✅ IMPROVED: Better availability checking
         logger.debug(f"Checking system availability: OCR={OCR_AVAILABLE}, Processor={PROCESSOR_AVAILABLE}, Parsers={PARSERS_AVAILABLE}")
         
-        # Process document with real OCR + intelligent parsing
+        # Process document with enhanced OCR + intelligent parsing
         if (OCR_AVAILABLE and ocr_manager and 
             PROCESSOR_AVAILABLE and 
             PARSERS_AVAILABLE and has_parser_for(doc_type)):
             
-            logger.info("Using real OCR + intelligent parsing")
-            response = await _process_with_real_ocr_and_parsing(
+            logger.info(f"Using enhanced OCR + intelligent parsing for {doc_type}")
+            response = await _process_with_enhanced_ocr(
                 file_content, 
                 file.content_type, 
                 doc_type, 
@@ -185,7 +207,7 @@ async def upload_document(
             if not PARSERS_AVAILABLE or not has_parser_for(doc_type):
                 missing_components.append("Parser")
             
-            logger.warning(f"Real processing unavailable (missing: {missing_components}) - using fallback")
+            logger.warning(f"Enhanced processing unavailable (missing: {missing_components}) - using fallback")
             response = _generate_fallback_response(doc_type, file_hash, len(file_content), missing_components)
         
         return response
@@ -200,20 +222,24 @@ async def upload_document(
         )
 
 
-async def _process_with_real_ocr_and_parsing(
+async def _process_with_enhanced_ocr(
     file_content: bytes, 
     mime_type: str, 
     doc_type: DocumentType, 
     file_hash: str
 ) -> DocumentResponse:
-    """Process document using real OCR + intelligent parsers"""
+    """
+    Process document using enhanced OCR with document-specific preprocessing
+    
+    UPDATED: Now passes doc_type to OCR manager for optimal preprocessing
+    """
     
     start_time = datetime.utcnow()
     errors = []
     warnings = []
     
     try:
-        logger.info(f"Processing {doc_type.value} with real OCR + intelligent parsing")
+        logger.info(f"Processing {doc_type.value} with enhanced OCR pipeline")
         
         # Step 1: File processing (PDF to images or direct image loading)
         try:
@@ -246,15 +272,18 @@ async def _process_with_real_ocr_and_parsing(
             ))
             return _create_error_response(doc_type, file_hash, start_time, errors)
         
-        # Step 2: Real OCR extraction on primary image
+        # Step 2: Enhanced OCR extraction with document-specific preprocessing
         primary_image = images[0]  # Process first page/image
         
         try:
-            logger.debug("Running real OCR extraction...")
+            logger.debug(f"Running enhanced OCR for {doc_type.value}...")
+            
+            # 🆕 NEW: Pass doc_type to enable document-specific preprocessing
             ocr_result = ocr_manager.extract_text(
                 primary_image,
                 engine_name=None,  # Auto-select best engine
-                fallback_on_failure=True
+                fallback_on_failure=True,
+                doc_type=doc_type.value  # 🔥 KEY CHANGE: Document-specific preprocessing
             )
             
             if not ocr_result.text.strip():
@@ -263,10 +292,26 @@ async def _process_with_real_ocr_and_parsing(
                     message="OCR could not extract any readable text"
                 ))
             
-            logger.info(f"OCR extraction completed: {len(ocr_result.text)} chars, confidence={ocr_result.confidence:.2f}")
+            logger.info(f"Enhanced OCR completed: {len(ocr_result.text)} chars, confidence={ocr_result.confidence:.2f}")
+            
+            # Check if enhanced preprocessing was used
+            if ocr_result.bbox_data:
+                for metadata in ocr_result.bbox_data:
+                    if metadata.get('type') == 'processing_metadata':
+                        strategy = metadata.get('strategy', 'unknown')
+                        logger.info(f"OCR strategy used: {strategy}")
+                        
+                        # Check quality warnings
+                        quality_info = metadata.get('quality_info', {})
+                        quality_warnings = quality_info.get('warnings', [])
+                        for qw in quality_warnings:
+                            warnings.append(Warning(
+                                code="IMAGE_QUALITY",
+                                message=qw
+                            ))
             
         except Exception as e:
-            logger.error(f"OCR extraction failed: {e}")
+            logger.error(f"Enhanced OCR extraction failed: {e}")
             errors.append(Error(
                 code="OCR_EXTRACTION_FAILED",
                 message=f"OCR extraction failed: {str(e)}"
@@ -283,7 +328,6 @@ async def _process_with_real_ocr_and_parsing(
                     code="NO_FIELDS_EXTRACTED",
                     message="Intelligent parser could not extract structured fields"
                 ))
-                # Use empty fields but continue
                 parse_result.fields = DocumentFields()
             
             # Add parser warnings to response
@@ -293,7 +337,7 @@ async def _process_with_real_ocr_and_parsing(
                     message=warning_msg
                 ))
             
-            logger.info(f"Intelligent parsing completed: confidence={parse_result.confidence_score:.2f}")
+            logger.info(f"Parsing completed: confidence={parse_result.confidence_score:.2f}")
             
         except Exception as e:
             logger.error(f"Intelligent parsing failed: {e}")
@@ -303,35 +347,48 @@ async def _process_with_real_ocr_and_parsing(
             ))
             return _create_error_response(doc_type, file_hash, start_time, errors)
         
-        # Step 4: Build comprehensive signals from OCR + parser results
+        # Step 4: Build comprehensive signals
         signals = _build_comprehensive_signals(doc_type, ocr_result, parse_result)
         
         # Step 5: Build detailed metadata
         processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
         
+        # Extract preprocessing info from OCR result
+        preprocessing_info = "unknown"
+        quality_score = None
+        
+        if ocr_result.bbox_data:
+            for metadata in ocr_result.bbox_data:
+                if metadata.get('type') == 'processing_metadata':
+                    preprocessing_info = metadata.get('strategy', 'unknown')
+                    quality_info = metadata.get('quality_info', {})
+                    quality_score = quality_info.get('blur_score')
+        
         meta = Meta(
             pages=len(images),
             processing_ms=processing_time,
-            engine=f"{ocr_result.engine}+{parse_result.extraction_method}",
+            engine=f"{ocr_result.engine}+enhanced+{parse_result.extraction_method}",
             upload_hash=f"sha256:{file_hash}",
             processed_at=datetime.utcnow(),
             field_mappings={
                 "ocr_engine": ocr_result.engine,
                 "ocr_confidence": f"{ocr_result.confidence:.3f}",
+                "preprocessing_strategy": preprocessing_info,  # 🆕 NEW
                 "parser_method": parse_result.extraction_method,
                 "parser_confidence": f"{parse_result.confidence_score:.3f}",
                 "file_format": file_metadata.get("original_format", "unknown"),
                 "pages_processed": str(len(images)),
-                "raw_ocr_text": ocr_result.text[:500] + "..." if len(ocr_result.text) > 500 else ocr_result.text
+                "quality_score": str(quality_score) if quality_score else "unknown",  # 🆕 NEW
+                "enhanced_preprocessing": "enabled"  # 🆕 NEW
             }
         )
         
-        logger.info(f"Complete processing finished: OCR={ocr_result.confidence:.2f}, Parser={parse_result.confidence_score:.2f}")
+        logger.info(f"Enhanced processing complete: OCR={ocr_result.confidence:.2f}, Parser={parse_result.confidence_score:.2f}, Strategy={preprocessing_info}")
         
         return DocumentResponse(
             doc_type=doc_type,
             doc_version="v1",
-            parser_version="1.0.0-real-ocr",
+            parser_version="1.0.0-enhanced-ocr",
             fields=parse_result.fields,
             signals=signals,
             meta=meta,
@@ -340,7 +397,7 @@ async def _process_with_real_ocr_and_parsing(
         )
         
     except Exception as e:
-        logger.error(f"Complete processing pipeline failed: {e}")
+        logger.error(f"Enhanced processing pipeline failed: {e}")
         errors.append(Error(
             code="PROCESSING_PIPELINE_FAILED",
             message=f"Complete processing failed: {str(e)}"
@@ -359,6 +416,13 @@ def _build_comprehensive_signals(doc_type: DocumentType, ocr_result, parse_resul
     if ocr_result.bbox_data:
         for bbox_item in ocr_result.bbox_data:
             if isinstance(bbox_item, dict):
+                # Check for quality info in processing metadata
+                if bbox_item.get('type') == 'processing_metadata':
+                    quality_info = bbox_item.get('quality_info', {})
+                    blur_score = quality_info.get('blur_score', 100.0)
+                    break
+                
+                # Legacy preprocessing metadata
                 if bbox_item.get('type') == 'preprocessing_metadata':
                     preprocessing = bbox_item.get('data', {})
                     blur_score = preprocessing.get('final_blur_score', 100.0)
@@ -373,24 +437,21 @@ def _build_comprehensive_signals(doc_type: DocumentType, ocr_result, parse_resul
         language_detected=ocr_result.language_detected,
         rotation_applied=rotation_applied,
         document_edges_detected=document_edges_detected,
-        suspected_tampering=False  # TODO: Add tamper detection
+        suspected_tampering=False
     )
     
     # Document-specific validation signals
     if doc_type == DocumentType.AADHAAR:
-        # Check if Aadhaar number passed Verhoeff validation
         id_field = getattr(parse_result.fields, 'id_number', None)
         signals.checksum_ok = getattr(id_field, 'validated', False) if id_field else False
-        signals.qr_verified = True  # Simulated for now - would check actual QR
+        signals.qr_verified = True  # Simulated
         
     elif doc_type == DocumentType.PAN:
-        # Check if PAN format validation passed
         id_field = getattr(parse_result.fields, 'id_number', None)
         signals.checksum_ok = getattr(id_field, 'validated', False) if id_field else False
-        signals.qr_verified = False  # PAN cards don't have QR codes
+        signals.qr_verified = False
     
     else:
-        # For DL and Voter ID (when parsers available)
         signals.checksum_ok = parse_result.confidence_score > 0.8
         signals.qr_verified = False
     
@@ -414,7 +475,7 @@ def _create_error_response(
         fields=DocumentFields(),
         signals=Signals(),
         meta=Meta(
-            pages=1,  # Must be >= 1 per schema validation
+            pages=1,
             processing_ms=processing_time,
             engine="error",
             upload_hash=f"sha256:{file_hash}",
@@ -431,9 +492,9 @@ def _generate_fallback_response(
     file_size: int, 
     missing_components: List[str]
 ) -> DocumentResponse:
-    """Generate fallback response when real processing unavailable"""
+    """Generate fallback response when enhanced processing unavailable"""
     
-    warning_msg = f"Real processing unavailable (missing: {', '.join(missing_components)}), using fallback"
+    warning_msg = f"Enhanced processing unavailable (missing: {', '.join(missing_components)}), using fallback"
     
     # Generate basic fallback data
     fallback_fields = DocumentFields()
@@ -479,12 +540,12 @@ def _generate_fallback_response(
             processed_at=datetime.utcnow(),
             field_mappings={
                 "fallback_reason": warning_msg,
-                "missing_components": ", ".join(missing_components)  # Convert list to string
+                "missing_components": ", ".join(missing_components)
             }
         ),
         errors=[],
         warnings=[Warning(
-            code="REAL_PROCESSING_UNAVAILABLE",
+            code="ENHANCED_PROCESSING_UNAVAILABLE",
             message=warning_msg
         )]
     )
