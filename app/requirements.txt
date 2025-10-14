@@ -1,7 +1,7 @@
 # ============================================
 # LIGHTWEIGHT OCR SERVICE - REQUIREMENTS
 # ============================================
-# Total size: ~80-100MB (vs 500MB+ with PaddleOCR)
+# Total size: ~85-105MB (with QR support)
 # Last updated: 2025-10-14
 # ============================================
 
@@ -25,6 +25,10 @@ numpy==1.24.3
 # OpenCV - Headless version (no GUI = smaller size)
 # Using headless: ~30MB vs regular opencv-python: ~50MB
 opencv-python-headless==4.8.1.78
+
+# QR Code Scanning (NEW - for 100% accurate Aadhaar extraction)
+# ~5MB - Reads QR codes from Aadhaar cards
+pyzbar==0.1.9
 
 # PDF Processing (Optional - only if you need PDF support)
 # Comment out if you only process images
@@ -52,13 +56,17 @@ PyMuPDF==1.23.8
 # Ubuntu/Debian:
 #   sudo apt update
 #   sudo apt install tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin
+#   sudo apt install libzbar0  # For QR code scanning
 #
 # CentOS/RHEL:
 #   sudo yum install tesseract tesseract-langpack-eng tesseract-langpack-hin
+#   sudo yum install zbar  # For QR code scanning
 #
 # macOS:
 #   brew install tesseract tesseract-lang
+#   brew install zbar  # For QR code scanning
 #
 # Windows:
-#   Download from: https://github.com/UB-Mannheim/tesseract/wiki
+#   Tesseract: Download from https://github.com/UB-Mannheim/tesseract/wiki
+#   ZBar: pip install pyzbar (includes DLLs for Windows)
 # ============================================
