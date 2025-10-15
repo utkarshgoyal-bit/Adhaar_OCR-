@@ -46,28 +46,39 @@ class OCRManager:
     UPDATED: Now uses enhanced preprocessing for better accuracy on Indian IDs.
     """
     
-    def __init__(self, 
-                 languages: List[str] = None,
-                 preferred_engine: str = "tesseract",
-                 enable_preprocessing: bool = True,
-                 enable_enhanced_preprocessing: bool = True):
-        
-        self.languages = languages or ["eng", "hin"]
-        self.preferred_engine = preferred_engine
-        self.enable_preprocessing = enable_preprocessing
-        self.enable_enhanced_preprocessing = enable_enhanced_preprocessing
-        
-        self.engines: Dict[str, OCREngine] = {}
-        self.preprocessor = OCRPreprocessor()  # Basic preprocessor
-        self.enhanced_preprocessor = None
-        
-        # Initialize enhanced preprocessor if available
-        if ENHANCED_PREPROCESSING_AVAILABLE and enable_enhanced_preprocessing:
-            self.enhanced_preprocessor = EnhancedPreprocessor()
-            logger.info("Enhanced preprocessing enabled for better accuracy")
-        
-        # Initialize available engines
-        self._initialize_engines()
+   def __init__(self, 
+             languages: List[str] = None,
+             preferred_engine: str = "tesseract",
+             enable_preprocessing: bool = True,
+             enable_enhanced_preprocessing: bool = True,
+             enable_qr_scanning: bool = True):  # 🆕 ADD THIS PARAMETER
+    
+    self.languages = languages or ["eng", "hin"]
+    self.preferred_engine = preferred_engine
+    self.enable_preprocessing = enable_preprocessing
+    self.enable_enhanced_preprocessing = enable_enhanced_preprocessing
+    self.enable_qr_scanning = enable_qr_scanning  # 🆕 ADD THIS LINE
+    
+    self.engines: Dict[str, OCREngine] = {}
+    self.preprocessor = OCRPreprocessor()
+    self.enhanced_preprocessor = None
+    self.qr_scanner = None  # 🆕 ADD THIS LINE
+    
+    # Initialize enhanced preprocessor if available
+    if ENHANCED_PREPROCESSING_AVAILABLE and enable_enhanced_preprocessing:
+        self.enhanced_preprocessor = EnhancedPreprocessor()
+        logger.info("Enhanced preprocessing enabled for better accuracy")
+    
+    # 🆕 ADD THIS BLOCK - Initialize QR scanner
+    if QR_SCANNER_AVAILABLE and enable_qr_scanning:
+        self.qr_scanner = get_qr_scanner()
+        if self.qr_scanner.is_available():
+            logger.info("QR scanner enabled for Aadhaar cards")
+        else:
+            logger.warning("QR scanner library available but not functional")
+    
+    # Initialize available engines
+    self._initialize_engines()
     
     def _initialize_engines(self):
         """Initialize all available OCR engines"""
