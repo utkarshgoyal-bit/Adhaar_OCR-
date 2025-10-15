@@ -18,6 +18,15 @@ try:
 except ImportError:
     ENHANCED_PREPROCESSING_AVAILABLE = False
     logger.warning("Enhanced preprocessing not available")
+    
+    
+    # Import QR scanner
+try:
+    from .qr_scanner import get_qr_scanner, scan_aadhaar_qr
+    QR_SCANNER_AVAILABLE = True
+except ImportError:
+    QR_SCANNER_AVAILABLE = False
+    logger.warning("QR scanner not available - install pyzbar for 100% accuracy")
 
 # Import engines with error handling
 try:
